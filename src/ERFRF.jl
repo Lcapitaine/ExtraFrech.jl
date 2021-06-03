@@ -1,7 +1,4 @@
 function ERFRF(Im::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, dist)
-    ### Allez c'est parti !!
-    ### on transforme les images en données spatio-Temporelles::
-    #### On passe à la suite :::
 
     dim::Tuple{Int,Int,Int}=size(Im)
     boot::Array{Float64} = zeros(ntree, dim[2])

@@ -1,14 +1,6 @@
 module ExtraFrech
 
 # Write your package code here.
-using Distances
-using Statistics
-using StatsBase
-using Random
-using ProgressMeter
-
-
-
 include("ERFRF.jl")
 include("ERtmax.jl")
 include("ERvar_split.jl")
