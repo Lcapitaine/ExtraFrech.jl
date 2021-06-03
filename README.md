@@ -5,19 +5,40 @@
 [![Coverage](https://codecov.io/gh/Lcapitaine/ExtraFrech.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Lcapitaine/ExtraFrech.jl)
 [![Coverage](https://coveralls.io/repos/github/Lcapitaine/ExtraFrech.jl/badge.svg?branch=master)](https://coveralls.io/github/Lcapitaine/ExtraFrech.jl?branch=master)
 
-"""
+
 This is an example of Fréchet extremely random forest :
+
+# Arguments
+* `X`: the matrix of the explanatory variables.
+* `Y`: the output scalar.
+
+Load the packages:
 
 ```
 julia
 julia> using ExtraFrech, Distances, Statistic
-julia> X=rand(20,100,10) #Simulate a database with 10 covariates of 100 individuals (curves or images) of length 20.
-julia> Y= 2.* log.(1 .+ mean(X[:,:,1], dims=2)) #Response variable.
 ```
 
+We simulate inputs `X` with 10 covariates of 100 individuals (curves or images) of length 20 and the associated output `Y`.
+
 ```
-julia> dist = Euclidean() #Set up a distance, see `Distances.jl` for all usable distances.
-julia> @time frf, P, boot = ERFRF(X, Y, 3, 500, 5, dist) #Build an Extremely random forest with 500 trees, `mtr=3` and `ntry=5`
+julia> X=rand(20,100,10)
+julia> Y= 2.* log.(1 .+ mean(X[:,:,1], dims=2))
 ```
 
-"""
+# Fréchet extremely random forest
+
+Form : `ERFRF(X,Y,mtry,ntree,ntry,dist)`
+
+
+* `X`: the matrix of the explanatory variables.
+* `Y`: the output.
+* `mtry`: number of variables randmly tested at each split.
+* `ntree`: number of Fréchet extremely randomized trees built.
+* `ntry`: number of centers randomly selected at each split.
+* `dist`: distance used (see `Distances.jl`)
+
+```
+julia> dist = Euclidean()
+julia> @time frf, P, boot = ERFRF(X, Y, 3, 500, 5, dist)
+```
