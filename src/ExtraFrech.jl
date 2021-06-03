@@ -19,8 +19,5 @@ include("Impurity.jl")
 include("Pred_rf.jl")
 include("Pred_tree.jl")
 
-export impurity
-
-
 
 end
