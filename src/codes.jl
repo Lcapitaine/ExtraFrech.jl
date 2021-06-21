@@ -42,13 +42,13 @@ function ERvar_split(Y::Vector{Float64},Im::Array{Float64,3}, ntry::Int64, dim::
         centers_prime = Array{Int64}(undef,2,n_dec)
 
 
-        for p in 1:dim[3]
+        @views for p in 1:dim[3]
 
             ## plus de tests que d'images ??
             splits::Array{Float64,2} = ones(n_dec, l)
             impur_prime = Vector{Float64}(undef, n_dec)
 
-            for k in 1:n_dec
+            @views for k in 1:n_dec
                 centers_prime[:,k] = sample(1:dim[2], 2, replace=false)
                 d_g = Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[1,k],p]) ## distance à gauche
                 d_d = Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[2,k],p]) ## le fameux dd
@@ -90,14 +90,14 @@ function ERtmax(Im::Array{Float64,3},Y::Vector{Float64},mtry::Int64,ntry::Int64,
 
     Pred[2,1]= mean(Y)
 
-    for i in 1:length(boot)/2-1
+    @views for i in 1:length(boot)/2-1
         ## On va tirer un sous-échantillon de variables possibles ::
         feuilles_prime = feuilles
         if decoupe == length(unique(feuilles))
             break
 
         else
-            for j in unique(feuilles)
+            @views for j in unique(feuilles)
 
                 qui::Vector{Int}= collect(findall(x->x==j, feuilles))
                 V::Vector{Int}= sort(sample(1:p, mtry, replace=false))
@@ -181,7 +181,7 @@ function pred_tree(tree::Array{Float64,2},Pred::Array{Float64,2},X::Array{Float6
     #tree = convert(Array{Int64,3},tree) ## A tester pour voir si on peut pas couper dans le gras ?
 
     while sum(feuilles)<size(X,2)
-        for i in unique(nodes)
+        @views for i in unique(nodes)
             qui::Vector{Int64} = findall(x->x==i,nodes)
             col::Vector{Int64} = findall(x->x==i,@view tree[1,:])
             if length(col)>0
@@ -215,7 +215,7 @@ function Importance(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64
 
     ID::Array{Int64,2} = convert(Array{Int64,2},id)
 
-    for p in 1:variables
+    @views for p in 1:variables
         err_courante.=0
         Threads.@threads for i in 1:ntree
             boot::Vector{Int64}= ID[i,findall(x->x>0.0,ID[i,:])]
@@ -263,7 +263,7 @@ function FRFERR(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64},P:
     ZZ::Array{Float64,3} = zeros(dim[1],2,dim[3])
 
 
-    for i in 1:dim[2]
+    @views for i in 1:dim[2]
         l=1
         Pred_courante = zeros(2,ntree)
         Threads.@threads for k in 1:ntree
