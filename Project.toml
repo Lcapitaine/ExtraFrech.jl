@@ -5,6 +5,7 @@ version = "0.5.0"
 
 [deps]
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SIMD = "fdea26ae-647d-5447-a871-4b548cad5224"
