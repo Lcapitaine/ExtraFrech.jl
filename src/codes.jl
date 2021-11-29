@@ -327,7 +327,7 @@ function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntre
     println("Building the Extra Fréchet Forest:")
     frf, P, boot  = ERFRF(X,Y, mtry, ntree, ntry, dist)
     println("Variables Importance Scores:")
-    Imp = mportance(frf,X,Y,P, boot, dist)
+    Imp = Importance(frf,X,Y,P, boot, dist)
     println("OOB errors and % of explained variance:")
     pred_OOB, mse, varex = FRFERR(frf,X, Y,P, boot, dist)
     return frf, P, Imp, pred_OOB, mse, varex 
