@@ -323,7 +323,7 @@ function Importance_Unique(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{
     return imp
 end
 
-function ExtraFrech(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, dist)
+function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, dist)
     println("Building the Extra Fréchet Forest:")
     frf, P, boot  = ERFRF(X,Y, mtry, ntree, ntry, dist)
     println("Variables Importance Scores:")

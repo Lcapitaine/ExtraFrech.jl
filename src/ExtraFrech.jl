@@ -5,7 +5,7 @@ include("codes.jl")
 export ERFRF
 export Importance
 export Importance_Unique
-export ExtraFrech
+export ExtraFrechetRF
 export pred_rf
 
 end
