@@ -11,10 +11,27 @@ function impurity(Y::Vector{Float64})
     return var(Y)
 end
 
-function impurity_split(Y::Vector{Float64},sp::Vector{Float64})
+
+function findall3(f, a::AbstractArray{T, N}) where {T, N}
+    j = 1
+    b = Vector{Int}(undef, length(a))
+    @inbounds for i in eachindex(a)
+        @inbounds if f(a[i])
+            b[j] = i
+            j += 1
+        end
+    end
+    resize!(b, j-1)
+    sizehint!(b, length(b))
+    return b
+end
+
+
+
+function impurity_split(Y::Vector{Float64},sp::AbstractVector{Float64})
     l::Int64=length(Y)
-    gauche::Vector{Int64} = findall(x->x==1,sp)
-    droite::Vector{Int64} = findall(x->x==2,sp)
+    gauche::Vector{Int64} = findall3(x->x==1,sp)
+    droite::Vector{Int64} = findall3(x->x==2,sp)
     return impurity(Y[gauche])*length(gauche)/l + impurity(Y[droite])*length(droite)/l
 end
 
@@ -28,8 +45,8 @@ function ERvar_split(Y::Vector{Float64},Im::Array{Float64,3}, ntry::Int64, dim::
     if l==2
 
         D::Vector{Float64} = zeros(dim[3])
-        for p in 1:dim[3]
-            D[p]= mean(sqrt.((Im[:,1,p]-Im[:,2,p]).^2))
+        @inbounds for p in 1:dim[3]
+            D[p]= @views mean(sqrt.((Im[:,1,p]-Im[:,2,p]).^2))
         end
         return findmax(D)[2], [1, 2], [1 ,2], 0
 
@@ -49,11 +66,11 @@ function ERvar_split(Y::Vector{Float64},Im::Array{Float64,3}, ntry::Int64, dim::
 
             for k in 1:n_dec
                 centers_prime[:,k] = sample(1:dim[2], 2, replace=false)
-                d_g = Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[1,k],p]) ## distance à gauche
-                d_d = Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[2,k],p]) ## le fameux dd
-                qui = findall(x->x>=0, d_g-d_d)::Vector{Int}
+                d_g = @views Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[1,k],p]) ## distance à gauche
+                d_d = @views Distances.colwise(dist, Im[:,:,p], Im[:,centers_prime[2,k],p]) ## le fameux dd
+                qui = findall3(x->x>=0, d_g-d_d)::Vector{Int}
                 splits[k,qui].=  2
-                impur_prime[k]= impurity_split(Y,splits[k,:])::Float64
+                impur_prime[k]= @views impurity_split(Y,splits[k,:])::Float64
             end
 
             impur[p], whichsplit = findmin(impur_prime)
@@ -69,7 +86,7 @@ end
 
 ### Maintenant on construit les arbres maximaux ::
 
-function ERtmax(Im::Array{Float64,3},Y::Vector{Float64},mtry::Int64,ntry::Int64, dim::Tuple{Int,Int,Int}, dist)
+function ERtmax(Im::Array{Float64,3},Y::Vector{Float64},mtry::Int64,ntry::Int64, minElem::Int,dim::Tuple{Int,Int,Int}, dist)
      ## On va éviter de calculer ça tout le temps !!!! A optimiser !!
     p::Int=dim[3]
     n::Int64= dim[2]
@@ -90,23 +107,23 @@ function ERtmax(Im::Array{Float64,3},Y::Vector{Float64},mtry::Int64,ntry::Int64,
 
     Pred[2,1]= mean(Y)
 
-    for i in 1:length(boot)-1
+    @inbounds for i in 1:length(boot)-1
         ## On va tirer un sous-échantillon de variables possibles ::
         feuilles_prime = feuilles
         if decoupe == length(unique(feuilles))
             break
 
         else
-            for j in unique(feuilles)
+            @inbounds for j in unique(feuilles)
 
-                qui= collect(findall(x->x==j, feuilles))
+                qui= collect(findall3(x->x==j, feuilles))
                 V::Vector{Int}= sort(sample(1:p, mtry, replace=false))
 
                 ### Maintenant il faut se restreindre aux éléments dans la feuilles
-                if length(qui)>1
+                if length(qui)>minElem
                     Split = ERvar_split(Y[boot][qui],X_boot[:,qui,V], ntry,(dim[1],length(qui),length(V)), dist)
-                    gauche::Vector{Int}=findall(x->x==1, Split[3])
-                    droite::Vector{Int}= findall(x->x==2, Split[3])
+                    gauche::Vector{Int}=findall3(x->x==1, Split[3])
+                    droite::Vector{Int}= findall3(x->x==2, Split[3])
 
                     if length(gauche)>0 && length(droite)>0
                         V_split[1,courant] = j
@@ -121,8 +138,8 @@ function ERtmax(Im::Array{Float64,3},Y::Vector{Float64},mtry::Int64,ntry::Int64,
                         Pred[1,courant_pred]=2*j
                         Pred[1,courant_pred+1]=2*j+1
 
-                        Pred[2,courant_pred]= mean(Y[boot][qui[gauche]])
-                        Pred[2,courant_pred+1] = mean(Y[boot][qui[droite]])
+                        Pred[2,courant_pred]= mean(@view Y[boot][qui[gauche]])
+                        Pred[2,courant_pred+1] = mean(@view Y[boot][qui[droite]])
 
                         courant += 1
                         courant_pred +=2
@@ -147,7 +164,7 @@ end
 
 ### On va passer aux forêts aléatoires ::::
 
-function ERFRF(Im::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, dist)
+function ERFRF(Im::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, minElem::Int, dist)
     ### Allez c'est parti !!
     ### on transforme les images en données spatio-Temporelles::
     #### On passe à la suite :::
@@ -164,7 +181,7 @@ function ERFRF(Im::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, 
     l = Threads.SpinLock()
 
     Threads.@threads for k in 1:ntree
-        trees_temp , pred_temp, boot_temp = ERtmax(Im,Y,mtry,ntry, dim, dist)
+        trees_temp , pred_temp, boot_temp = ERtmax(Im,Y,mtry,ntry,minElem, dim, dist)
         trees[:,1:size(trees_temp,2),k] = trees_temp
         P[:,1:size(pred_temp,2),k]= pred_temp
         boot[k,1:length(boot_temp)]= boot_temp
@@ -189,19 +206,19 @@ function pred_tree(tree::Array{Float64,2},Pred::Array{Float64,2},X::Array{Float6
     #tree = convert(Array{Int64,3},tree) ## A tester pour voir si on peut pas couper dans le gras ?
 
     while sum(feuilles)<size(X,2)
-        for i in unique(nodes)
-            qui::Vector{Int64} = findall(x->x==i,nodes)
-            col::Vector{Int64} = findall(x->x==i,@view tree[1,:])
+        @inbounds for i in unique(nodes)
+            qui::Vector{Int64} = findall3(x->x==i,nodes)
+            col::Vector{Int64} = findall3(x->x==i,@view tree[1,:])
             if length(col)>0
-                d_g::Vector{Float64}= Distances.colwise(dist, X[:,qui,convert(Int64,tree[2,col][1])], X_init[:,convert(Int64,tree[3,col][1]),convert(Int64,tree[2,col][1])])
-                d_d::Vector{Float64}= Distances.colwise(dist, X[:,qui,convert(Int64,tree[2,col][1])], X_init[:,convert(Int64,tree[4,col][1]),convert(Int64,tree[2,col][1])])
-                gauche::Vector{Int64} = findall(x->x<=0, d_g-d_d)
-                droite::Vector{Int64} = findall(x->x>0, d_g-d_d)
+                d_g::Vector{Float64}= @views Distances.colwise(dist, X[:,qui,convert(Int64,tree[2,col][1])], X_init[:,convert(Int64,tree[3,col][1]),convert(Int64,tree[2,col][1])])
+                d_d::Vector{Float64}= @views Distances.colwise(dist, X[:,qui,convert(Int64,tree[2,col][1])], X_init[:,convert(Int64,tree[4,col][1]),convert(Int64,tree[2,col][1])])
+                gauche::Vector{Int64} = findall3(x->x<=0, d_g-d_d)
+                droite::Vector{Int64} = findall3(x->x>0, d_g-d_d)
                 nodes[qui[gauche]] = 2*nodes[qui[gauche]]
                 nodes[qui[droite]] = 2*nodes[qui[droite]] .+ 1
 
             elseif unique(feuilles[qui])[1]==0.0
-                pred[qui] .=  @view Pred[2,findall(x->x==i,@view Pred[1,:])]
+                pred[qui] .=  @view Pred[2,findall3(x->x==i,@view Pred[1,:])]
                 feuilles[qui] .= 1
             end
         end
@@ -223,16 +240,16 @@ function Importance(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64
 
     ID::Array{Int64,2} = convert(Array{Int64,2},id)
 
-    for p in 1:variables
+    @inbounds for p in 1:variables
         err_courante.=0
         Threads.@threads for i in 1:ntree
-            boot::Vector{Int64}= ID[i,findall(x->x>0.0,ID[i,:])]
+            boot::Vector{Int64}= ID[i,findall3(x->x>0.0,ID[i,:])]
             ### Trouver les éléments qui ne sont pas dans l'échantillon OOB :
             OOB::Vector{Int64} = setdiff(1:dim[2],boot)
             X_permute::Array{Float64,3} =  X[:,OOB,:]
             X_permute[:,:,p] = @view X[:,OOB[randperm(length(OOB))],p]
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
-            err_courante[i] = mean((Y[OOB].-pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)).^2)
+            err_courante[i] = @views mean((Y[OOB].-pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)).^2)
         end
         imp[p]= mean(err_courante)
         update!(prog, p)
@@ -252,18 +269,18 @@ function FRFERR(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64},P:
     ZZ::Array{Float64,3} = zeros(dim[1],2,dim[3])
 
 
-    for i in 1:dim[2]
+    @inbounds for i in 1:dim[2]
         Pred_courante = zeros(2,ntree)
         ZZ[:,1,:], ZZ[:,2,:] = X[:,i,:], X[:,i,:]
         Threads.@threads for k in 1:ntree
-            if length(findall(x->x==i,id[k,:]))==0
+            if length(findall3(x->x==i,id[k,:]))==0
                 Pred_courante[1,k] = 1.0
-                Pred_courante[2,k] = pred_tree(frf[:,:,k],P[:,:,k],ZZ,X, dist)[1]
+                Pred_courante[2,k] = @views pred_tree(frf[:,:,k],P[:,:,k],ZZ,X, dist)[1]
             end
 
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
         end
-        pred_OOB[i] = mean(Pred_courante[2,findall(x->x>0.0,Pred_courante[1,:])])
+        pred_OOB[i] = mean(@views Pred_courante[2,findall3(x->x>0.0,Pred_courante[1,:])])
     end
 
     mse = mean((Y.-pred_OOB).^2)
@@ -282,25 +299,25 @@ function Importance_Unique(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{
     imp[1,:] = varibables
     ID::Array{Int64,2} = convert(Array{Int64,2},id)
 
-    for p in 1:length(variables)
+    @inbounds for p in 1:length(variables)
         err_courante.=0
         Threads.@threads for i in 1:ntree
-            boot::Vector{Int64}= ID[i,findall(x->x>0.0,ID[i,:])]
+            boot::Vector{Int64}= @view ID[i,findall3(x->x>0.0,ID[i,:])]
             ### Trouver les éléments qui ne sont pas dans l'échantillon OOB :
             OOB::Vector{Int64} = setdiff(1:dim[2],boot)
             X_permute::Array{Float64,3} = @views X[:,OOB,:]
             X_permute[:,:,variables[p]] = @views X[:,OOB[randperm(length(OOB))],variables[p]]
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
-            err_courante[i] = mean((Y[OOB].-pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)).^2)
+            err_courante[i] = @views mean((Y[OOB].-pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)).^2)
         end
         imp[2,p]= mean(err_courante)
     end
     return imp
 end
 
-function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, imp::Bool, dist)
+function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, imp::Bool,minElem::Int, dist)
     println("Building the Extra Fréchet Forest:")
-    frf, P, boot  = ERFRF(X,Y, mtry, ntree, ntry, dist)
+    frf, P, boot  = ERFRF(X,Y, mtry, ntree, ntry,minElem, dist)
     println("OOB errors and % of explained variance:")
     pred_OOB, mse, varex = FRFERR(frf,X, Y,P, boot, dist)
 
