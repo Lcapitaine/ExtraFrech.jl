@@ -240,31 +240,6 @@ function Importance(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64
     return imp
 end
 
-
-### On fait la fonction de prédiction ::
-
-function pred_rf(frf::Array{Float64,3},Pred::Array{Float64,3},X::Array{Float64,3},X_init::Array{Float64,3}, dist)
-    ntree::Int = size(frf,3)
-    pred::Array{Float64,2}= zeros(size(X,2), ntree)
-
-    p=Progress(ntree);
-    update!(p,0)
-    jj = Threads.Atomic{Int}(0)
-    l = Threads.SpinLock()
-
-    Threads.@threads for i in 1:ntree
-        pred[:,i]= pred_tree( frf[:,:,i], Pred[:,:,i], X,X_init, dist)
-
-        Threads.atomic_add!(jj, 1)
-        Threads.lock(l)
-        update!(p, jj[])
-        Threads.unlock(l)
-    end
-
-    return mean(pred,dims=2)
-end
-
-
 ### On fait la fonction du calcul du ‰ de variance expliquée ::
 ### On va aussi rajouter les prediction OOB pour la forêt complète ::
 
@@ -332,8 +307,35 @@ function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntre
     if imp==true
         println("Variables Importance Scores:")
         Imp = Importance(frf,X,Y,P, boot, dist)
-        return Dict("FrechetRF"=> frf, "Imp"=>Imp, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P)
+        return Dict("FrechetRF"=> frf, "Imp"=>Imp, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P, "mtry"=>mtry, "ntry"=>ntry, "ntree"=>ntree, "dist"=>dist)
     end 
 
-    return Dict("FrechetRF"=> frf, "Imp"=>false, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P)
+    return Dict("FrechetRF"=> frf, "Imp"=>false, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P, "mtry"=>mtry, "ntry"=>ntry, "ntree"=>ntree, "dist"=>dist)
+end
+
+
+
+function pred_rf(frf::Dict{String, Any}, X::Array{Float64,3}, X_init::Array{Float64,3})
+    ntree::Int = get(frf, "ntree",1)
+    pred::Array{Float64,2}= zeros(size(X,2), ntree)
+
+    forest = get(frf, "FrechetRF", 1)
+    Pred = get(frf, "P", 1)
+    dist = get(frf, "dist",1)
+
+    p=Progress(ntree);
+    update!(p,0)
+    jj = Threads.Atomic{Int}(0)
+    l = Threads.SpinLock()
+
+    Threads.@threads for i in 1:ntree
+        pred[:,i]= pred_tree(forest[:,:,i], Pred[:,:,i], X,X_init, dist)
+
+        Threads.atomic_add!(jj, 1)
+        Threads.lock(l)
+        update!(p, jj[])
+        Threads.unlock(l)
+    end
+
+    return mean(pred,dims=2)
 end
