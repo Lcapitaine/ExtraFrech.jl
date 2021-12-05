@@ -323,12 +323,17 @@ function Importance_Unique(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{
     return imp
 end
 
-function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, dist)
+function ExtraFrechetRF(X::Array{Float64,3}, Y::Vector{Float64}, mtry::Int, ntree::Int, ntry::Int, imp::Bool, dist)
     println("Building the Extra Fréchet Forest:")
     frf, P, boot  = ERFRF(X,Y, mtry, ntree, ntry, dist)
-    println("Variables Importance Scores:")
-    Imp = Importance(frf,X,Y,P, boot, dist)
     println("OOB errors and % of explained variance:")
     pred_OOB, mse, varex = FRFERR(frf,X, Y,P, boot, dist)
-    return frf, P, Imp, pred_OOB, mse, varex 
+
+    if imp==true
+        println("Variables Importance Scores:")
+        Imp = Importance(frf,X,Y,P, boot, dist)
+        return Dict("FrechetRF"=> frf, "Imp"=>Imp, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P)
+    end 
+
+    return Dict("FrechetRF"=> frf, "Imp"=>false, "varex"=> varex, "mse"=>mse, "OOB pred"=>pred_OOB, "P"=>P)
 end
