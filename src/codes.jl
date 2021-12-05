@@ -197,7 +197,7 @@ end
 
 ### On passe à la fonction de prédiction sur les arbres :::
 
-function pred_tree(tree::Array{Float64,2},Pred::Array{Float64,2},X::Array{Float64,3},X_init::Array{Float64,3}, dist)
+function pred_tree(tree::AbstractArray{Float64,2},Pred::AbstractArray{Float64,2},X::AbstractArray{Float64,3},X_init::AbstractArray{Float64,3}, dist)
 
     pred::Vector{Float64} = zeros(size(X,2))
     nodes::Vector{Float64} = ones(size(X,2))
