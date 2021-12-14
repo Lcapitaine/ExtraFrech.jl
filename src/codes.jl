@@ -638,7 +638,7 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
             P = infos["P"]
 
 
-            if length(findall3(x->x==indiv[i],id[k,:]))==0
+            if length(findall3(x->x==indiv[i],id))== 0.0
                 Pred_courante[1,k] = 0
                 Pred_courante[2,k] = @views pred_tree(tree,P,ZZ,X, dist)[1]
             end
