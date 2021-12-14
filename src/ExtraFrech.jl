@@ -9,5 +9,6 @@ export ExtraFrechetRF
 export pred_rf
 export OOB_unique
 export Combine
+export Combine_OOB
 
 end

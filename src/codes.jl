@@ -680,3 +680,22 @@ function Combine(lien::String,X::Array{Float64,3})
 
     return Dict("trees"=>trees, "P"=>P, "id"=>boot)
 end 
+
+function Combine_OOB(dossier::String,Y)
+
+    files = readdir(dossier, join=true)
+    pred_OOB = []
+    proba_OOB = []
+    var_init = mean(Y.!=findmax(countmap(Y))[2])
+
+    for i in 1:length(files)
+        infos = load(files[i])
+        pred_OOB = vcat(pred_OOB,infos["pred"])
+        proba_OOB = vcat(proba_OOB, infos["proba"])
+    end 
+
+    mse = mean(Y.!= pred_OOB)
+    varex = 1 - mse/var_init
+
+    return pred_OOB, proba_OOB, mse, varex 
+end 
