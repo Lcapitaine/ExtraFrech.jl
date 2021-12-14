@@ -613,49 +613,8 @@ function pred_rf(frf::Dict{String, Any}, X::Array{Float64,3}, X_init::Array{Floa
 end
 
 
-function OOB_unique(frf::String, X::Array{Float64,3}, indiv::Vector{Int64}, dist)
 
-    dim=size(X)
-
-    trees = readdir(frf, join=true)
-    ntree = length(trees)
-
-
-    type = eltype(load(trees[1])["P"][1,1])
-
-    pred_OOB=zeros(type,length(indiv))
-    ZZ = zeros(dim[1],2,dim[3])
-
-
-    @inbounds for i in 1:length(indiv)
-        Pred_courante = fill(-1,2,ntree)
-        ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
-        Threads.@threads for k in 1:ntree
-
-            infos = load(trees[k])
-            tree = infos["tree"]
-            P = infos["P"]
-            id = infos["boot"]
-
-            if length(findall3(x->x==indiv[i],id)) == 0
-                Pred_courante[1,k] = 0
-                Pred_courante[2,k] = @views pred_tree(tree,P,ZZ,X, dist)[1]
-            end
-
-            ## Il faut maintenant regarder la différence en erreur de prédiction ::
-        end
-
-        if type==Int
-            pred_OOB[i] = findmax(countmap(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])]))[2]
-        else 
-            pred_OOB[i] = mean(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])])
-        end 
-    end
-    return pred_OOB 
-end
-
-
-function OOB_unique_backup(frf::Dict{String, Array}, X::Array{Float64,3}, indiv::Vector{Int64}, dist)
+function OOB_unique(frf::Dict{String, Array}, X::Array{Float64,3}, indiv::Vector{Int64}, dist)
 
     dim=size(X)
 
