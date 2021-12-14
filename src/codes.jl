@@ -613,7 +613,7 @@ function pred_rf(frf::Dict{String, Any}, X::Array{Float64,3}, X_init::Array{Floa
 end
 
 
-function OOB_unique(frf::String,X::Array{Float64,3}, indiv::UnitRange{Int64}, dist)
+function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
 
     dim=size(X)
 
