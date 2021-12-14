@@ -620,7 +620,7 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
     trees=readdir(frf; join = true)
     ntree::Int=length(trees)
 
-    type = eltype(load(trees[1])["P"][1,1])
+    type = eltype(JLD.load(trees[1])["P"][1,1])
 
     ntree=size(frf,3)
     pred_OOB=zeros(type,length(indiv))
