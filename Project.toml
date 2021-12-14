@@ -4,6 +4,7 @@ authors = ["Louis Capitaine"]
 version = "0.5.0"
 
 [deps]
+CalculatedABC = "6c2f61f8-fafd-4db0-a534-9240d45f7a9c"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
