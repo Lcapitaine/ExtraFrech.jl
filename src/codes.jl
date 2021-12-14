@@ -629,7 +629,7 @@ function OOB_unique(frf::Dict{String, Array}, X::Array{Float64,3}, indiv::Vector
     @inbounds for i in 1:length(indiv)
         Pred_courante = fill(-1,2,ntree)
         ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
-        Threads.@threads for k in 1:ntree
+        for k in 1:ntree
 
             if length(findall3(x->x==indiv[i],frf["id"][k,:])) == 0
                 Pred_courante[1,k] = 0
