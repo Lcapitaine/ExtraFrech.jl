@@ -472,48 +472,69 @@ end
 
 ### On regarde maintenant les predictions OOB de la forêt de Fréchet pour calculer le % de var expliquée:::
 
-function Importance_Unique(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64},P::Array{Float64,3}, id::Array{Float64,2}, variables::UnitRange{Int64}, dist)
+function Importance_Unique(frf::Array{Char},X::Array{Float64,3}, Y::Vector{Float64},variables::UnitRange{Int64}, dist)
     dim=size(X)::Tuple{Int,Int,Int}
     imp::Array{Float64,2}= zeros(2,length(variables))
-    ntree::Int=size(frf,3)
+
+    trees=readdir(frf; join = true)
+    ntree::Int=length(trees)
+
     err_courante::Vector{Float64}=zeros(ntree)
-    imp[1,:] = varibables
+    imp[1,:] = variables
     ID::Array{Int64,2} = convert(Array{Int64,2},id)
+
 
     @inbounds for p in 1:length(variables)
         err_courante.=0
         Threads.@threads for i in 1:ntree
+
+            infos = load(trees[k])
+            tree = infos["tree"]
+            ID = infos["boot"]
+            P = infos["P"]
+
             boot::Vector{Int64}= @view ID[i,findall3(x->x>0.0,ID[i,:])]
             ### Trouver les éléments qui ne sont pas dans l'échantillon OOB :
             OOB::Vector{Int64} = setdiff(1:dim[2],boot)
+
+
             X_permute::Array{Float64,3} = @views X[:,OOB,:]
             X_permute[:,:,variables[p]] = @views X[:,OOB[randperm(length(OOB))],variables[p]]
+
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
-            err_courante[i] = @views mean((Y[OOB].-pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)).^2)
+            err_courante[i] = @views mean((Y[OOB].-pred_tree(tree, P,X_permute,X, dist)).^2)-mean((Y[OOB].-pred_tree(tree,P,X[:,OOB,:],X, dist)).^2)
         end
         imp[2,p]= mean(err_courante)
     end
     return imp
 end
 
-function Importance_Unique(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Int64},P::Array{Int64,3}, id::Array{Float64,2}, variables::UnitRange{Int64}, dist)
+function Importance_Unique(frf::Array{Char},X::Array{Float64,3}, Y::Vector{Int64}, variables::UnitRange{Int64}, dist)
     dim=size(X)::Tuple{Int,Int,Int}
     imp::Array{Float64,2}= zeros(2,length(variables))
-    ntree::Int=size(frf,3)
+
+    trees=readdir(frf; join = true)
+    ntree::Int=length(trees)
+
     err_courante::Vector{Float64}=zeros(ntree)
-    imp[1,:] = varibables
-    ID::Array{Int64,2} = convert(Array{Int64,2},id)
+    imp[1,:] = variables
 
     @inbounds for p in 1:length(variables)
         err_courante.=0
         Threads.@threads for i in 1:ntree
+
+            infos = load(trees[k])
+            tree = infos["tree"]
+            ID = infos["boot"]
+            P = infos["P"]
+
             boot::Vector{Int64}= @view ID[i,findall3(x->x>0.0,ID[i,:])]
             ### Trouver les éléments qui ne sont pas dans l'échantillon OOB :
             OOB::Vector{Int64} = setdiff(1:dim[2],boot)
             X_permute::Array{Float64,3} = @views X[:,OOB,:]
             X_permute[:,:,variables[p]] = @views X[:,OOB[randperm(length(OOB))],variables[p]]
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
-            err_courante[i] = @views mean((Y[OOB].!=pred_tree(frf[:,:,i], P[:,:,i],X_permute,X, dist)))-mean((Y[OOB].!=pred_tree(frf[:,:,i],P[:,:,i],X[:,OOB,:],X, dist)))
+            err_courante[i] = @views mean((Y[OOB].!=pred_tree(tree, P,X_permute,X, dist)))-mean((Y[OOB].!=pred_tree(tree,P,X[:,OOB,:],X, dist)))
         end
         imp[2,p]= mean(err_courante)
     end
@@ -589,4 +610,47 @@ function pred_rf(frf::Dict{String, Any}, X::Array{Float64,3}, X_init::Array{Floa
     end
 
     return prediction_rf(pred)
+end
+
+
+function OOB_unique(frf::Array{Char},X::Array{Float64,3}, indiv::Vector{Int64}, dist)
+
+    dim=size(X)
+
+    trees=readdir(frf; join = true)
+    ntree::Int=length(trees)
+
+    type = eltype(load(trees[1])["P"][1,1])
+
+    ntree=size(frf,3)
+    pred_OOB=zeros(type,length(indiv))
+    ZZ = zeros(dim[1],2,dim[3])
+
+
+    @inbounds for i in 1:length(indiv)
+        Pred_courante = fill(-1,2,ntree)
+        ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
+        Threads.@threads for k in 1:ntree
+
+            infos = load(trees[k])
+            tree = infos["tree"]
+            id = infos["boot"]
+            P = infos["P"]
+
+
+            if length(findall3(x->x==indiv[i],id[k,:]))==0
+                Pred_courante[1,k] = 0
+                Pred_courante[2,k] = @views pred_tree(tree,P,ZZ,X, dist)[1]
+            end
+
+            ## Il faut maintenant regarder la différence en erreur de prédiction ::
+        end
+
+        if type==Int
+            pred_OOB[i] = findmax(countmap(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])]))[2]
+        else 
+            pred_OOB[i] = mean(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])])
+        end 
+    end
+    return pred_OOB 
 end

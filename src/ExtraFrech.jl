@@ -7,5 +7,6 @@ export Importance
 export Importance_Unique
 export ExtraFrechetRF
 export pred_rf
+export OOB_unique
 
 end
