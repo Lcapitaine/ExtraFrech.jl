@@ -663,6 +663,7 @@ function OOB_unique_backup(frf::Dict{String, Array}, X::Array{Float64,3}, indiv:
     type = eltype(frf["P"][1,1,1])
 
     pred_OOB=zeros(type,length(indiv))
+    proba = zeros(length(indiv))
     ZZ = zeros(dim[1],2,dim[3])
 
 
@@ -680,12 +681,15 @@ function OOB_unique_backup(frf::Dict{String, Array}, X::Array{Float64,3}, indiv:
         end
 
         if type==Int
-            pred_OOB[i] = findmax(countmap(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])]))[2]
+            
+            elem  = findmax(countmap(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])]))
+            pred_OOB[i] = elem[2]
+            proba[i] = elem[1]/length(findall3(x->x==0,Pred_courante[1,:]))
         else 
             pred_OOB[i] = mean(@views Pred_courante[2,findall3(x->x==0,Pred_courante[1,:])])
         end 
     end
-    return pred_OOB 
+    return pred_OOB, proba 
 end
 
 
