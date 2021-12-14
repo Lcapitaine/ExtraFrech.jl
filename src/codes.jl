@@ -413,7 +413,7 @@ function FRFERR(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Float64},P:
     dim=size(X)::Tuple{Int,Int,Int}
     #variables::Int = dim[3]
     ntree::Int=size(frf,3)
-    err_OOB::Vector{Float64}=zeros(ntree)
+
     pred_OOB::Vector{Float64}=zeros(dim[2])
     ZZ::Array{Float64,3} = zeros(dim[1],2,dim[3])
 
@@ -443,7 +443,6 @@ function FRFERR(frf::Array{Float64,3},X::Array{Float64,3}, Y::Vector{Int64},P::A
     #variables::Int = dim[3]
     ntree=size(frf,3)
 
-    err_OOB=zeros(ntree)
     pred_OOB=zeros(Int64,dim[2])
     ZZ = zeros(dim[1],2,dim[3])
 
@@ -614,14 +613,12 @@ function pred_rf(frf::Dict{String, Any}, X::Array{Float64,3}, X_init::Array{Floa
 end
 
 
-function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
+function OOB_unique(frf::Dict{String, Any}, X::Array{Float64,3}, indiv::Vector{Int64}, dist)
 
     dim=size(X)
 
-    trees=readdir(frf, join = true)
-    ntree=length(trees)
-
-    type = eltype(load(trees[1])["P"][1,1])
+    ntree = size(frf["trees"],3)
+    type = eltype(frf["P"][1,1,1])
 
     pred_OOB=zeros(type,length(indiv))
     ZZ = zeros(dim[1],2,dim[3])
@@ -632,15 +629,9 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
         ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
         Threads.@threads for k in 1:ntree
 
-            infos = load(trees[k])
-            tree = infos["tree"]
-            id = infos["boot"]
-            P = infos["P"]
-
-
-            if length(findall3(x->x==indiv[i],id))== 0.0
+            if length(findall3(x->x==indiv[i],frf["id"][k,:])) == 0
                 Pred_courante[1,k] = 0
-                Pred_courante[2,k] = @views pred_tree(tree,P,ZZ,X, dist)[1]
+                Pred_courante[2,k] = @views pred_tree(frf["trees"][:,:,k],frf["P"][:,:,k],ZZ,X, dist)[1]
             end
 
             ## Il faut maintenant regarder la différence en erreur de prédiction ::
@@ -654,3 +645,34 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
     end
     return pred_OOB 
 end
+
+
+
+function Combine(lien::String,X::Array{Float64,3})
+
+    dim = size(X)
+
+    Trees=readdir(lien, join = true)
+    ntree=length(Trees)
+
+    type = eltype(load(Trees[1])["P"][1,1])
+
+    boot = zeros(ntree, dim[2])
+    trees = zeros(4,2*dim[2]-1,ntree)
+    P = zeros(type,(2,2*dim[2]-1,ntree))
+
+    for k in 1:ntree
+
+        infos = load(Trees[k])
+        tree_temp = infos["tree"]
+        id_temp = infos["boot"]
+        P_temp = infos["P"]
+
+        trees[:,1:size(tree_temp,2),k] = tree_temp
+        P[:,1:size(P_temp,2),k]= P_temp
+        boot[k,1:length(id_temp)]= id_temp
+
+    end 
+
+    return Dict("trees"=>trees, "P"=>P, "id"=>boot)
+end 
