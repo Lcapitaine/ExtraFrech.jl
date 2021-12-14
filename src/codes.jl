@@ -620,7 +620,8 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
     trees=readdir(frf; join = true)
     ntree::Int=length(trees)
 
-    type = eltype(JLD.load(trees[1])["P"][1,1])
+    t = load(trees[1])
+    type = eltype(t["P"][1,1])
 
     ntree=size(frf,3)
     pred_OOB=zeros(type,length(indiv))
@@ -632,7 +633,7 @@ function OOB_unique(frf::String,X::Array{Float64,3}, indiv::Vector{Int64}, dist)
         ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
         Threads.@threads for k in 1:ntree
 
-            infos = JLD.load(trees[k])
+            infos = load(trees[k])
             tree = infos["tree"]
             id = infos["boot"]
             P = infos["P"]
