@@ -336,14 +336,8 @@ function pred_tree(tree::AbstractArray{Float64,2},Pred::AbstractArray{T,2},X::Ab
                 nodes[qui[droite]] = 2*nodes[qui[droite]] .+ 1
 
             elseif unique(feuilles[qui])[1]==0.0
-
-                if length(findall3(x->x==i,@view Pred[1,:]))==0
-                    pred[qui] .=  @view Pred[2,convert(Int, floor(i/2))]
-                else 
-                    pred[qui] .=  @view Pred[2,findall3(x->x==i,@view Pred[1,:])]
-                end 
+                pred[qui] .=  @view Pred[2,findall3(x->x==i,@view Pred[1,:])]
                 feuilles[qui] .= 1
-
             end
 
         end
