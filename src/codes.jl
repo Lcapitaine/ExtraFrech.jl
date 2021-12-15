@@ -336,9 +336,16 @@ function pred_tree(tree::AbstractArray{Float64,2},Pred::AbstractArray{T,2},X::Ab
                 nodes[qui[droite]] = 2*nodes[qui[droite]] .+ 1
 
             elseif unique(feuilles[qui])[1]==0.0
-                pred[qui] .=  @view Pred[2,findall3(x->x==i,@view Pred[1,:])]
+
+                if length(findall3(x->x==i,@view Pred[1,:]))==0
+                    pred[qui] .=  @view Pred[2,convert(Int, floor(i/2))]
+                else 
+                    pred[qui] .=  @view Pred[2,findall3(x->x==i,@view Pred[1,:])]
+                end 
                 feuilles[qui] .= 1
+
             end
+
         end
     end
     return pred
@@ -629,7 +636,7 @@ function OOB_unique(frf::Dict{String, Array}, X::Array{Float64,3}, indiv::Vector
     @inbounds for i in 1:length(indiv)
         Pred_courante = fill(-1,2,ntree)
         ZZ[:,1,:], ZZ[:,2,:] = X[:,indiv[i],:], X[:,indiv[i],:]
-        for k in 1:ntree
+        Threads.@threads for k in 1:ntree
 
             if length(findall3(x->x==indiv[i],frf["id"][k,:])) == 0
                 Pred_courante[1,k] = 0
