@@ -203,45 +203,47 @@ function ERtmax(Im::Array{Float64,3},Y::Vector{Int64},mtry::Int64,ntry::Int64, m
            @inbounds for j in unique(feuilles)
 
                qui= collect(findall3(x->x==j, feuilles))
-               V= sort(sample(1:p, mtry, replace=false))
 
-               ### Maintenant il faut se restreindre aux éléments dans la feuilles
-               if length(qui)>minElem
-                   Split = ERvar_split(Y[boot][qui],X_boot[:,qui,V], ntry,(dim[1],length(qui),length(V)), dist)
-                   gauche::Vector{Int}=findall3(x->x==1, Split[3])
-                   droite::Vector{Int}= findall3(x->x==2, Split[3])
+               impur = gini_coeff(Y[boot][qui])
 
-                   if length(gauche)>0 && length(droite)>0
-                       V_split[1,courant] = j
-                       V_split[2,courant] = V[Split[1]]
-                       V_split[3,courant] = boot[qui[Split[2][1]]]
-                       V_split[4,courant] = boot[qui[Split[2][2]]]
+               if impur > 0
 
+                    V= sort(sample(1:p, mtry, replace=false))
+                    if length(qui)>minElem
+                        Split = ERvar_split(Y[boot][qui],X_boot[:,qui,V], ntry,(dim[1],length(qui),length(V)), dist)
+                        gauche::Vector{Int}=findall3(x->x==1, Split[3])
+                        droite::Vector{Int}= findall3(x->x==2, Split[3])
+                        if length(gauche)>0 && length(droite)>0
+                            V_split[1,courant] = j
+                            V_split[2,courant] = V[Split[1]]
+                            V_split[3,courant] = boot[qui[Split[2][1]]]
+                            V_split[4,courant] = boot[qui[Split[2][2]]]
+                            feuilles_prime[qui[gauche]].= 2*j#*ones(length(gauche))
+                            feuilles_prime[qui[droite]].= (2*j + 1)#*ones(length(droite))
 
-                       feuilles_prime[qui[gauche]].= 2*j#*ones(length(gauche))
-                       feuilles_prime[qui[droite]].= (2*j + 1)#*ones(length(droite))
+                            Pred[1,courant_pred]=2*j
+                            Pred[1,courant_pred+1]=2*j+1
 
-                       Pred[1,courant_pred]=2*j
-                       Pred[1,courant_pred+1]=2*j+1
+                            Pred[2,courant_pred]= findmax(countmap(@view Y[boot][qui[gauche]]))[2]
+                            Pred[2,courant_pred+1] = findmax(countmap(@view Y[boot][qui[droite]]))[2]
 
-                       Pred[2,courant_pred]= findmax(countmap(@view Y[boot][qui[gauche]]))[2]
-                       Pred[2,courant_pred+1] = findmax(countmap(@view Y[boot][qui[droite]]))[2]
+                            courant += 1
+                            courant_pred +=2
+                        else
+                            decoupe +=1
+                        end
+                    else
+                        decoupe = decoupe+1
+                    end
+                else 
+                    decoupe += 1 
+                end 
+            end 
 
-                       courant += 1
-                       courant_pred +=2
-                   else
-                       decoupe +=1
-                   end
-                   
+            if decoupe < length(unique(feuilles))
+                decoupe=0
+            end
 
-               else
-                   decoupe = decoupe+1
-               end
-           end
-
-           if decoupe < length(unique(feuilles))
-               decoupe=0
-           end
            feuilles = feuilles_prime
        end
    end
